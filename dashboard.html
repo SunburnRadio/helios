@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DATASTREAM INTERFACE v7.3 (Date Fix)</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;700&display=swap');
+
+        :root {
+            --primary-color: #FFFFFF;
+            --background-color: #000000;
+            --border-color: #FFFFFF;
+            --text-color: #FFFFFF;
+            --highlight-color: #FFFFFF;
+            --dim-color: #555555;
+            --accent-color-active: #000000;
+        }
+
+        * { box-sizing: border-box; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--background-color); }
+        ::-webkit-scrollbar-thumb { background: var(--dim-color); border: 1px solid var(--dim-color); }
+        ::-webkit-scrollbar-thumb:hover { background: var(--primary-color); border: 1px solid var(--primary-color); }
+
+        body {
+            background-color: var(--background-color);
+            color: var(--text-color);
+            font-family: 'IBM Plex Mono', monospace;
+            font-size: 16px;
+            margin: 0;
+            padding: 1rem;
+            overflow: hidden;
+        }
+        
+        a, a:link, a:visited { color: var(--primary-color); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        .scanline-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100vh;
+            pointer-events: none; background: linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0) 98%, rgba(255,255,255,0.1) 99%, rgba(0,0,0,0) 100%);
+            background-size: 100% 3px; animation: scanline 15s linear infinite; z-index: 9999; opacity: 0.1;
+        }
+        @keyframes scanline { from { background-position: 0 0; } to { background-position: 0 100vh; } }
+
+        .view-container {
+            display: none;
+            height: calc(100vh - 2rem);
+            opacity: 0;
+            transition: opacity 0.4s ease-in-out;
+        }
+        .view-container.active {
+            display: grid;
+            opacity: 1;
+        }
+
+        /* --- Global Controls --- */
+        #view-toggle-btn {
+            position: fixed;
+            top: 1.5rem;
+            right: 1.5rem;
+            z-index: 2000;
+        }
+
+        /* --- DASHBOARD VIEW STYLES --- */
+        #dashboard-view {
+            grid-template-columns: 2fr 1fr;
+            grid-template-rows: 1fr auto;
+            grid-template-areas: "main-panel right-column" "footer-panel footer-panel";
+            gap: 1rem;
+        }
+
+        .panel {
+            border: 1px solid var(--border-color); padding: 1rem;
+            display: flex; flex-direction: column; background-color: rgba(0,0,0,0.5);
+            min-height: 0;
+        }
+        .panel-title {
+            margin: 0 0 1rem 0; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border-color);
+            font-weight: 700; text-transform: uppercase; flex-shrink: 0;
+        }
+        .main-panel { grid-area: main-panel; }
+        .viewer-header { border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; margin-bottom: 1rem; flex-shrink: 0; }
+        #viewer-title { font-size: 1.75em; margin: 0 0 0.5rem 0; text-transform: uppercase; font-weight: 700; color: var(--primary-color); }
+        .viewer-subheader { display: flex; justify-content: space-between; align-items: center; }
+        #viewer-case-id { color: var(--dim-color); text-transform: uppercase; }
+        .button-group, .action-buttons { display: flex; gap: 0.5rem; }
+        .button-group button, .action-buttons button, #view-toggle-btn {
+            background: transparent; border: 1px solid var(--primary-color);
+            color: var(--primary-color); padding: 0.5rem 1rem;
+            cursor: pointer; font-family: inherit; text-transform: uppercase;
+        }
+        .button-group button.active { background: var(--primary-color); color: var(--accent-color-active); }
+        #copy-link-btn { border-style: dashed; }
+        #article-content {
+            overflow-y: auto; flex-grow: 1; white-space: pre-wrap; word-wrap: break-word;
+            font-size: 1.1em; line-height: 1.6; text-transform: none;
+            opacity: 1; transition: opacity 0.2s ease-in-out;
+        }
+        .right-column { grid-area: right-column; display: grid; grid-template-rows: auto auto 1fr; gap: 1rem; }
+        .meta-panel { grid-row: 1; }
+        .comms-panel { grid-row: 2; }
+        .signal-queue-panel { grid-row: 3; }
+        .meta-label { color: var(--dim-color); width: 80px; display: inline-block; text-transform: uppercase;}
+        .meta-value { word-wrap: break-word; }
+        #x-post-content { line-height: 1.6; }
+        #x-post-handle { color: var(--primary-color); font-weight: 700; }
+        #x-post-source { color: var(--dim-color); font-size: 0.9em; margin-bottom: 0.5rem; display: block; }
+        .signal-queue-list { list-style: none; padding: 0; margin: 0; overflow-y: auto; }
+        .signal-queue-list li {
+            padding: 0.5rem; border-bottom: 1px solid var(--dim-color);
+            display: flex; align-items: center; text-transform: uppercase;
+            opacity: 0; animation: decode-text 0.5s forwards;
+            cursor: pointer; transition: background-color 0.2s, color 0.2s;
+        }
+        .signal-queue-list li:hover { background-color: var(--highlight-color); color: var(--accent-color-active); }
+        .signal-indicator { width: 8px; height: 8px; background-color: var(--primary-color); border-radius: 50%; margin-right: 1rem; flex-shrink: 0; animation: pulse 1.5s infinite; }
+        .signal-queue-list li:hover .signal-indicator { background-color: var(--accent-color-active); }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
+        @keyframes decode-text { to { opacity: 1; } }
+        .footer-panel { grid-area: footer-panel; flex-direction: row; align-items: center; }
+        .article-list-container { overflow-x: auto; flex-grow: 1; }
+        .article-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: row; gap: 1rem; }
+        .article-list li {
+            padding: 1rem; cursor: pointer; transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+            white-space: nowrap; flex-shrink: 0; border: 1px solid var(--dim-color); text-transform: uppercase;
+        }
+        .article-list li:hover { background-color: var(--dim-color); border-color: var(--dim-color); color: var(--background-color); }
+        .article-list li.selected { background-color: var(--primary-color); border-color: var(--primary-color); color: var(--accent-color-active); }
+        #open-archive-btn { margin-left: 2rem; flex-shrink: 0; padding: 1.1rem 1rem; }
+
+        /* --- INDEX VIEW STYLES --- */
+        #index-view {
+            grid-template-columns: 1fr 2fr 1fr;
+            grid-template-rows: 1fr;
+            gap: 1rem;
+        }
+        .index-panel { align-items: stretch; }
+        #lead-story-panel { justify-content: center; text-align: center; }
+        #lead-story-title { font-size: 2.5em; font-weight: 700; margin-bottom: 1rem; text-transform: uppercase; }
+        #lead-story-quote { font-size: 1.2em; color: var(--dim-color); margin: 0 auto 2rem auto; max-width: 80%; line-height: 1.6; font-style: italic; }
+        #analyze-lead-btn { font-size: 1.2em; padding: 1rem 2rem; }
+        
+        #incoming-signals-list { list-style: none; padding: 0; margin: 0; overflow-y: auto; }
+        #incoming-signals-list li { text-transform: uppercase; padding: 0.75rem; border-bottom: 1px dashed var(--dim-color); cursor: pointer; transition: background-color 0.2s, color 0.2s; }
+        #incoming-signals-list li:hover { background-color: var(--highlight-color); color: var(--accent-color-active); }
+
+        #system-status-list { list-style: none; padding: 0; margin: 0; font-size: 1.1em; }
+        #system-status-list li { display: flex; justify-content: space-between; padding: 0.75rem 0; border-bottom: 1px dashed var(--dim-color); }
+        #system-status-list li span:first-child { color: var(--dim-color); }
+        @keyframes glitch { 2%,64%{transform: translate(2px,0) skew(0deg);} 4%,60%{transform: translate(-2px,0) skew(0deg);} 62%{transform: translate(0,0) skew(5deg);} }
+        .glitch { animation: glitch 1.5s linear infinite reverse; }
+
+        /* --- Archive Overlay --- */
+        #archive-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--overlay-bg);
+            display: flex; align-items: center; justify-content: center; z-index: 1000;
+            opacity: 0; visibility: hidden; transition: opacity 0.3s, visibility 0.3s; backdrop-filter: blur(5px);
+        }
+        #archive-overlay.active { opacity: 1; visibility: visible; }
+        .archive-modal {
+            width: 80%; max-width: 1000px; height: 80%; border: 1px solid var(--primary-color); background: var(--background-color);
+            padding: 1.5rem; display: flex; flex-direction: column; transform: scale(0.95); transition: transform 0.3s; box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+        }
+        #archive-overlay.active .archive-modal { transform: scale(1); }
+        .archive-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--primary-color); padding-bottom: 1rem; }
+        #close-archive-btn { font-size: 1.5rem; cursor: pointer; padding: 0.5rem; }
+        #archive-list-full-container { margin-top: 1rem; overflow-y: auto; }
+        #archive-list-full { list-style: none; padding: 0; margin: 0; }
+        #archive-list-full li { padding: 0.75rem; cursor: pointer; border-bottom: 1px dashed var(--dim-color); text-transform: uppercase; }
+        #archive-list-full li:hover { background-color: var(--highlight-color); color: var(--accent-color-active); }
+        #archive-list-full li .date { color: var(--dim-color); margin-left: 1rem; font-size: 0.9em; }
+        #archive-list-full li:hover .date { color: var(--accent-color-active); }
+
+    </style>
+</head>
+<body>
+    <div class="scanline-overlay"></div>
+    <button id="view-toggle-btn">[ TOGGLE VIEW ]</button>
+
+    <div id="index-view" class="view-container">
+        <!-- Index View HTML -->
+        <div class="panel index-panel">
+            <h2 class="panel-title">INCOMING SIGNALS</h2>
+            <ul id="incoming-signals-list"></ul>
+        </div>
+        <div class="panel index-panel" id="lead-story-panel">
+            <h2 class="panel-title">PRIORITY-ONE TRANSMISSION</h2>
+            <h1 id="lead-story-title">LOADING...</h1>
+            <p id="lead-story-quote"></p>
+            <button id="analyze-lead-btn" class="button-group">[ ANALYZE CASE FILE ]</button>
+        </div>
+        <div class="panel index-panel">
+            <h2 class="panel-title">SYSTEM STATUS</h2>
+            <ul id="system-status-list">
+                <li><span>G.S.T.</span> <span id="gst-clock">--:--:--</span></li>
+                <li><span>STATUS</span> <span>NOMINAL</span></li>
+                <li><span>PACKETS RX</span> <span id="data-packets" class="glitch">0</span></li>
+            </ul>
+        </div>
+    </div>
+
+    <div id="dashboard-view" class="view-container">
+        <!-- Dashboard View HTML -->
+        <div class="panel main-panel">
+            <div class="viewer-header">
+                <h1 id="viewer-title">NO STREAM SELECTED</h1>
+                <div class="viewer-subheader">
+                    <div id="viewer-case-id">CASE FILE: STANDING BY</div>
+                    <div class="action-buttons">
+                        <button id="copy-link-btn">[ COPY LINK ]</button>
+                    </div>
+                </div>
+            </div>
+            <div class="button-group">
+                <button id="view-original">ORIGINAL</button>
+                <button id="view-response" class="active">RESPONSE</button>
+                <button id="view-essay">ESSAY</button>
+            </div>
+            <pre id="article-content"></pre>
+        </div>
+
+        <div class="right-column">
+            <div class="panel meta-panel">
+                <h2 class="panel-title">METADATA</h2>
+                <div class="meta-group">
+                    <div><span class="meta-label">DATE:</span> <span class="meta-value" id="meta-date">N/A</span></div>
+                    <div><span class="meta-label">SOURCE:</span> <a href="#" target="_blank" class="meta-value" id="meta-source">N/A</a></div>
+                </div>
+                <div class="meta-group" id="meta-tags-container" style="display: none;">
+                    <span class="meta-label">TAGS:</span> <span class="meta-value" id="meta-tags"></span>
+                </div>
+            </div>
+            <div class="panel comms-panel">
+                 <h2 class="panel-title">COMMS // X-POST</h2>
+                 <div id="x-post-content">
+                    <div id="x-post-source">TRANSMISSION SOURCE:</div>
+                    <div id="x-post-handle">@HANDLE</div>
+                    <p id="x-post-body">Awaiting signal...</p>
+                 </div>
+            </div>
+            <div class="panel signal-queue-panel">
+                 <h2 class="panel-title">SIGNAL QUEUE</h2>
+                 <ul class="signal-queue-list" id="signal-queue-list"></ul>
+            </div>
+        </div>
+
+        <div class="panel footer-panel">
+            <div class="article-list-container">
+                <ul class="article-list" id="article-list"></ul>
+            </div>
+            <button id="open-archive-btn" class="button-group">[ BROWSE FULL ARCHIVE ]</button>
+        </div>
+    </div>
+    
+    <div id="archive-overlay">
+        <!-- Archive Modal HTML -->
+        <div class="archive-modal">
+            <div class="archive-header">
+                <h2 class="panel-title">ARCHIVE INDEX</h2>
+                <span id="close-archive-btn">[ X ]</span>
+            </div>
+            <div id="archive-list-full-container">
+                <ul id="archive-list-full"></ul>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- STATE & DATA ---
+            let articlesData = [];
+            let articleIds = [];
+            let selectedArticleId = null;
+            let currentDashboardView = 'response';
+            let isIndexViewActive = true;
+
+            // --- DOM CACHING ---
+            const dom = {
+                indexView: document.getElementById('index-view'),
+                dashboardView: document.getElementById('dashboard-view'),
+                viewToggleBtn: document.getElementById('view-toggle-btn'),
+                leadStoryTitle: document.getElementById('lead-story-title'),
+                leadStoryQuote: document.getElementById('lead-story-quote'),
+                analyzeLeadBtn: document.getElementById('analyze-lead-btn'),
+                incomingSignalsList: document.getElementById('incoming-signals-list'),
+                gstClock: document.getElementById('gst-clock'),
+                dataPackets: document.getElementById('data-packets'),
+                copyLinkBtn: document.getElementById('copy-link-btn'),
+                articleListEl: document.getElementById('article-list'),
+                articleContentEl: document.getElementById('article-content'),
+                viewerTitleEl: document.getElementById('viewer-title'),
+                viewerCaseIdEl: document.getElementById('viewer-case-id'),
+                metaDateEl: document.getElementById('meta-date'),
+                metaSourceEl: document.getElementById('meta-source'),
+                metaTagsContainer: document.getElementById('meta-tags-container'),
+                metaTagsEl: document.getElementById('meta-tags'),
+                xPostHandleEl: document.getElementById('x-post-handle'),
+                xPostBodyEl: document.getElementById('x-post-body'),
+                signalQueueListEl: document.getElementById('signal-queue-list'),
+                viewButtons: {
+                    original: document.getElementById('view-original'),
+                    response: document.getElementById('view-response'),
+                    essay: document.getElementById('view-essay'),
+                },
+                archiveOverlay: document.getElementById('archive-overlay'),
+                openArchiveBtn: document.getElementById('open-archive-btn'),
+                closeArchiveBtn: document.getElementById('close-archive-btn'),
+                archiveListFull: document.getElementById('archive-list-full'),
+            };
+
+            // --- URL MANAGEMENT ---
+            function updateURL() {
+                if (isIndexViewActive) {
+                    history.pushState(null, '', window.location.pathname);
+                } else if (selectedArticleId) {
+                    const hash = `id=${selectedArticleId}&view=${currentDashboardView}`;
+                    history.pushState({ id: selectedArticleId, view: currentDashboardView }, '', `#${hash}`);
+                }
+            }
+            
+            // --- VIEW MANAGEMENT ---
+            function setView(viewName) {
+                isIndexViewActive = viewName === 'index';
+                dom.indexView.classList.toggle('active', isIndexViewActive);
+                dom.dashboardView.classList.toggle('active', !isIndexViewActive);
+                updateURL();
+            }
+
+            // --- DATA POPULATION ---
+            function populateIndexView() {
+                if (articlesData.length === 0) return;
+                const leadArticle = articlesData[0];
+                dom.leadStoryTitle.textContent = leadArticle.essay.title;
+                dom.leadStoryQuote.textContent = `"${leadArticle.original.body.substring(0, 150)}..."`;
+                dom.analyzeLeadBtn.dataset.id = leadArticle.id;
+
+                dom.incomingSignalsList.innerHTML = '';
+                articlesData.slice(1, 5).forEach(article => {
+                    const li = document.createElement('li');
+                    li.textContent = article.essay.title;
+                    li.dataset.id = article.id;
+                    li.onclick = () => {
+                        selectArticle(article.id);
+                        setView('dashboard');
+                    };
+                    dom.incomingSignalsList.appendChild(li);
+                });
+            }
+
+            // --- DISPLAY LOGIC ---
+            function selectArticle(id, shouldUpdateURL = true) {
+                if (selectedArticleId === id && !isIndexViewActive) return;
+                selectedArticleId = id;
+                updateContextualList();
+                updateSignalQueue();
+                updateDashboardDisplay(true);
+                if (shouldUpdateURL) updateURL();
+            }
+
+            function switchDashboardView(viewKey, shouldUpdateURL = true) {
+                if (currentDashboardView === viewKey) return;
+                currentDashboardView = viewKey;
+                
+                Object.values(dom.viewButtons).forEach(btn => btn.classList.remove('active'));
+                if(dom.viewButtons[viewKey]) dom.viewButtons[viewKey].classList.add('active');
+                
+                updateDashboardDisplay(false);
+                if (shouldUpdateURL) updateURL();
+            }
+
+            function updateDashboardDisplay(withAnimation) {
+                if (!selectedArticleId) return;
+                const articleData = articlesData.find(a => a.id === selectedArticleId);
+                if (!articleData) return;
+
+                const updateContent = () => {
+                    let dataToShow = articleData[currentDashboardView];
+                    
+                    if (withAnimation) {
+                        dom.viewerTitleEl.textContent = articleData.essay.title || articleData.original.title;
+                        dom.viewerCaseIdEl.textContent = `CASE FILE: ${articleData.id}`;
+                        // FIX: Set the persistent date for the entire case file
+                        const caseFileDate = articleData.response?.date || articleData.essay?.date || 'N/A';
+                        dom.metaDateEl.textContent = caseFileDate;
+                    }
+                    
+                    dom.articleContentEl.textContent = dataToShow?.body || "No content available for this view.";
+                    
+                    const source = dataToShow?.source || '#';
+                    dom.metaSourceEl.textContent = source.length > 35 ? source.substring(0, 32) + '...' : source;
+                    dom.metaSourceEl.href = source;
+                    
+                    const tags = articleData.essay.tags;
+                    dom.metaTagsContainer.style.display = tags ? 'block' : 'none';
+                    if (tags) dom.metaTagsEl.textContent = tags.join(' | ');
+                    
+                    dom.xPostHandleEl.textContent = articleData.x_post?.handle || "@UNKNOWN";
+                    dom.xPostBodyEl.textContent = articleData.x_post?.post || "No transmission.";
+                    
+                    if (withAnimation) dom.articleContentEl.style.opacity = 1;
+                };
+
+                if (withAnimation) {
+                    dom.articleContentEl.style.opacity = 0;
+                    setTimeout(updateContent, 200);
+                } else {
+                    updateContent();
+                }
+            }
+            
+            function getFilmstripIds(currentIndex) {
+                const range = 2;
+                const start = Math.max(0, currentIndex - range);
+                const end = Math.min(articleIds.length - 1, currentIndex + range);
+                return articleIds.slice(start, end + 1);
+            }
+
+            function updateContextualList() {
+                if (!selectedArticleId) return;
+                dom.articleListEl.innerHTML = '';
+                const currentIndex = articleIds.indexOf(selectedArticleId);
+                const visibleIds = getFilmstripIds(currentIndex);
+
+                visibleIds.forEach(id => {
+                    const article = articlesData.find(a => a.id === id);
+                    const index = articleIds.indexOf(id);
+                    const li = document.createElement('li');
+                    li.textContent = `[${String(index + 1).padStart(2, '0')}] ${article.essay.title}`;
+                    li.dataset.id = id;
+                    li.classList.toggle('selected', id === selectedArticleId);
+                    li.addEventListener('click', () => selectArticle(id));
+                    dom.articleListEl.appendChild(li);
+                });
+            }
+
+            function updateSignalQueue() {
+                if (!selectedArticleId) return;
+                dom.signalQueueListEl.innerHTML = '';
+                const currentIndex = articleIds.indexOf(selectedArticleId);
+                const filmstripIds = new Set(getFilmstripIds(currentIndex));
+                const queueSize = 4;
+                const candidateIds = articleIds.filter(id => id !== selectedArticleId && !filmstripIds.has(id));
+                const futureSignals = candidateIds.filter(id => articleIds.indexOf(id) > currentIndex);
+                let signalsToShow = [...futureSignals];
+                if (signalsToShow.length < queueSize) {
+                    const pastSignals = candidateIds.filter(id => articleIds.indexOf(id) < currentIndex);
+                    signalsToShow.push(...pastSignals);
+                }
+                signalsToShow.slice(0, queueSize).forEach((id, index) => {
+                    const article = articlesData.find(a => a.id === id);
+                    const li = document.createElement('li');
+                    li.style.animationDelay = `${index * 0.1}s`;
+                    li.innerHTML = `<div class="signal-indicator"></div><span>${article.essay.title}</span>`;
+                    li.dataset.id = id;
+                    li.addEventListener('click', () => selectArticle(id));
+                    dom.signalQueueListEl.appendChild(li);
+                });
+            }
+            
+            function populateFullArchiveList() {
+                dom.archiveListFull.innerHTML = '';
+                articlesData.forEach((article) => {
+                    const li = document.createElement('li');
+                    li.dataset.id = article.id;
+                    li.innerHTML = `<span>${article.essay.title}</span><span class="date">${article.essay.date || 'N/A'}</span>`;
+                    li.addEventListener('click', () => { selectArticle(article.id); closeArchive(); setView('dashboard'); });
+                    dom.archiveListFull.appendChild(li);
+                });
+            }
+            
+            function initTimers() {
+                setInterval(() => dom.gstClock.textContent = new Date().toISOString().substring(11, 19), 1000);
+                let packets = Math.floor(Math.random() * 2000);
+                setInterval(() => dom.dataPackets.textContent = packets += Math.floor(Math.random() * 10), 500);
+            }
+            
+            function initEventListeners() {
+                dom.viewToggleBtn.onclick = () => setView(isIndexViewActive ? 'dashboard' : 'index');
+                dom.analyzeLeadBtn.onclick = () => {
+                    selectArticle(dom.analyzeLeadBtn.dataset.id);
+                    setView('dashboard');
+                };
+                dom.copyLinkBtn.onclick = () => {
+                    navigator.clipboard.writeText(window.location.href).then(() => {
+                        const originalText = dom.copyLinkBtn.textContent;
+                        dom.copyLinkBtn.textContent = '[ COPIED! ]';
+                        setTimeout(() => dom.copyLinkBtn.textContent = originalText, 2000);
+                    });
+                };
+                Object.keys(dom.viewButtons).forEach(key => {
+                    dom.viewButtons[key].onclick = () => switchDashboardView(key);
+                });
+                const openArchive = () => dom.archiveOverlay.classList.add('active');
+                const closeArchive = () => dom.archiveOverlay.classList.remove('active');
+                dom.openArchiveBtn.onclick = openArchive;
+                dom.closeArchiveBtn.onclick = closeArchive;
+                dom.archiveOverlay.onclick = (e) => { if (e.target === dom.archiveOverlay) closeArchive(); };
+                document.onkeydown = (e) => { if (e.key === "Escape") closeArchive(); };
+            }
+
+            async function initialize() {
+                try {
+                    const response = await fetch('data.json');
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    articlesData = await response.json();
+                    if (!Array.isArray(articlesData)) throw new Error("JSON data is not an array.");
+                    
+                    articleIds = articlesData.map(article => article.id);
+                    populateFullArchiveList(); 
+                    populateIndexView();
+                    initEventListeners();
+                    initTimers();
+
+                    const params = new URLSearchParams(window.location.hash.substring(1));
+                    const id = params.get('id');
+                    if (id && articleIds.includes(id)) {
+                        selectArticle(id, false);
+                        switchDashboardView(params.get('view') || 'response', false);
+                        setView('dashboard');
+                    } else {
+                        setView('index');
+                        if (articleIds.length > 0) selectArticle(articleIds[0], false);
+                    }
+                } catch (error) { console.error('Error initializing:', error); }
+            }
+            
+            initialize();
+        });
+    </script>
+</body>
+</html>
