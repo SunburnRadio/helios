@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Retro TUI Response</title>
+    <style>
+        body {
+            background-color: #000;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            margin: 0;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+        .terminal {
+            max-width: 800px;
+            margin: 0 auto;
+            border: 2px solid #00ff00;
+            padding: 20px;
+            background-color: #000;
+            box-shadow: 0 0 10px #00ff00;
+        }
+        h1, h2, h3 {
+            color: #00ff00;
+            text-transform: uppercase;
+            border-bottom: 1px dashed #00ff00;
+        }
+        p {
+            line-height: 1.5;
+            margin: 10px 0;
+        }
+        a {
+            color: #00ffff;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+        a:hover {
+            color: #ff00ff;
+        }
+        .cursor {
+            display: inline-block;
+            width: 10px;
+            height: 16px;
+            background-color: #00ff00;
+            animation: blink 1s step-end infinite;
+            vertical-align: middle;
+        }
+        @keyframes blink {
+            50% { opacity: 0; }
+        }
+        .typing {
+            display: none;
+        }
+        .typing.show {
+            display: block;
+            animation: typing 0.05s steps(40, end);
+        }
+        @keyframes typing {
+            from { width: 0; }
+            to { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="terminal">
+        <h1>Retro TUI Response System v1.0</h1>
+        <div id="content">
+            <p class="typing">Thank you for your perspective on the tariffs. I understand your view of Trump as more performative than strategic, and I'd like to offer insight into the rationale behind the administration's tariff approach, addressing your concerns about clarity and planning. The policy draws heavily from Oren Cass's work at American Compass, aiming to revitalize U.S. manufacturing.</p>
+
+            <h2>Addressing Your Concerns</h2>
+            <h3>1. Purpose Beyond "Bringing Manufacturing Back"</h3>
+            <p class="typing">The tariffs aim to incentivize domestic manufacturing, reduce trade deficits, protect national security, and raise revenue. Oren Cass's framework, outlined in his report <a href="https://americancompass.org/the-case-for-a-strategic-tariff/">The Case for a Strategic Tariff</a>, argues manufacturing jobs are critical for economic stability, community vitality, and innovation. The White House cites tariffs to protect industries like steel and semiconductors, vital for resilience.</p>
+
+            <h3>2. Tariffs as Negotiation Leverage</h3>
+            <p class="typing">You mentioned tariffs as a "stick" for better trade terms, which is central to the strategy. Tariffs pressure countries like the UK, Japan, and Vietnam into deals, e.g., the UK's 10% tariff agreement and Japan's $550B investment. High rates (like 145% on China) are often starting points for negotiation, later reduced (e.g., to 30% and 10% post-truce).</p>
+
+            <h3>3. Trade Deficits and Economic Understanding</h3>
+            <p class="typing">Your concern about trade deficits being misframed as "losing money" is valid—deficits reflect the U.S.'s consumer role. However, Cass and the administration see the $1.2T goods deficit (2024) as a sign of manufacturing decline and dependency, e.g., on China's supply chains. Tariffs aim to rebalance trade, per the April 2025 "national emergency" declaration: <a href="https://www.whitehouse.gov/briefing-room/statements-releases/2025/04/02/fact-sheet-president-donald-j-trump-declares-national-emergency-to-increase-our-competitive-edge-protect-our-sovereignty-and-strengthen-our/">White House Fact Sheet</a>.</p>
+
+            <h3>4. Fluctuating Tariff Rates</h3>
+            <p class="typing">Shifting rates (15% to 145%) seem erratic but reflect flexibility. The 145% China tariff included a 20% "fentanyl" component, later cut to 30%. This volatility keeps partners negotiating but risks market chaos, as seen in the 2025 crash: <a href="https://www.reuters.com/markets/trump-tariffs-sow-fears-trade-wars-recession-2300-iphone-2025-04-04/">Reuters</a>.</p>
+
+            <h2>Critique and Context</h2>
+            <p class="typing">The administration's messaging can feel simplistic, with Trump's X posts or speeches (e.g., April 2, 2025, Rose Garden) blending "emergency" rhetoric with deal-making talk. Critics, like the Tax Foundation, warn tariffs raise prices ($1,300/household in 2025). Cass's vision, though, bets on long-term industrial gains despite short-term pain.</p>
+
+            <h2>Media Links for Tariff Rationale</h2>
+            <p class="typing">
+                - Trump’s April 2, 2025, Speech: Tariffs as a "national emergency" fix. <a href="https://www.whitehouse.gov/briefing-room/statements-releases/2025/04/02/fact-sheet-president-donald-j-trump-declares-national-emergency-to-increase-our-competitive-edge-protect-our-sovereignty-and-strengthen-our/">White House</a><br>
+                - USTR Greer’s Testimony (April 2025): Tariffs counter manufacturing loss. <a href="https://www.nytimes.com/2025/04/08/business/markets-soar-after-trump-backs-down-on-tariffs.html">New York Times</a><br>
+                - Navarro on CNBC (April 3, 2025): Tariffs raise $600B, protect auto/steel. <a href="https://www.cnbc.com/2025/04/03/trump-open-to-tariff-negotiations-contradicting-white-house-aides.html">CNBC</a><br>
+                - Lutnick on Cable News (April 2025): Tariffs fight unfair trade. <a href="https://www.reuters.com/markets/trump-tariffs-sow-fears-trade-wars-recession-2300-iphone-2025-04-04/">Reuters</a><br>
+                - Cass’s Report: Strategic tariff blueprint. <a href="https://americancompass.org/the-case-for-a-strategic-tariff/">American Compass</a>
+            </p>
+
+            <h2>Final Thoughts</h2>
+            <p class="typing">The tariff plan, rooted in Cass’s ideas, aims for manufacturing revival but can seem chaotic in execution. It’s a long-term bet with short-term risks. Thanks for your critique—it sharpens the discussion! Let me know if you want to dive deeper.<span class="cursor"></span></p>
+        </div>
+    </div>
+
+    <script>
+        const elements = document.querySelectorAll('.typing');
+        let delay = 0;
+
+        elements.forEach((el, index) => {
+            setTimeout(() => {
+                el.classList.add('show');
+            }, delay);
+            delay += 500; // Adjust delay for each section
+        });
+    </script>
+</body>
+</html>
